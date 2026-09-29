@@ -1,0 +1,20 @@
+        <class>com.example.shop.model.Order</class>
+        <class>com.example.shop.model.OrderLine</class>
+        <class>com.example.shop.model.Customer</class>
+<beans>
+    <bean id="orderService" class="com.example.shop.service.OrderService">
+        <property name="orderDao" ref="orderDao"/>
+    </bean>
+    <bean id="paymentService" class="com.example.shop.service.PaymentService">
+        <property name="gateway" ref="gateway"/>
+    </bean>
+    <bean id="gateway" class="com.example.shop.payment.CardGateway"></bean>
+    <bean id="orderDao" class="com.example.shop.dao.OrderDao"></bean>
+    <bean id="customerDao" class="com.example.shop.dao.CustomerDao"></bean>
+    <persistence-unit name="shop">
+        <class>com.example.shop.model.Order</class>
+        <class>com.example.shop.model.OrderLine</class>
+        <class>com.example.shop.model.Customer</class>
+        <class>com.example.shop.dao.OrderDao</class>
+    </persistence-unit>
+</beans>

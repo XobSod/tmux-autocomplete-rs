@@ -1,0 +1,19 @@
+<settings>
+    <mirrors>
+        <mirror>
+            <id>internal</id>
+            <name>Internal mirror</name>
+            <url>https://repo.example.com/maven2</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+    </mirrors>
+    <proxies>
+        <proxy>
+            <id>office</id>
+            <active>false</active>
+            <protocol>http</protocol>
+            <host>proxy.example.com</host>
+            <port>3128</port>
+        </proxy>
+    </proxies>
+</settings>

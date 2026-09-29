@@ -1,0 +1,16 @@
+input/xml-class-names
+com.ex
+com.example.shop.service.OrderService"
+com.example.shop.service.OrderService
+com.example.shop.service.PaymentService"
+com.example.shop.service.PaymentService
+com.example.shop.payment.CardGateway"
+com.example.shop.payment.CardGateway
+com.example.shop.dao.OrderDao"
+com.example.shop.dao.OrderDao
+com.example.shop.dao.CustomerDao"
+com.example.shop.dao.CustomerDao
+com.example.shop.model.Order
+com.example.shop.model.OrderLine
+com.example.shop.model.Customer
+com.example.shop.dao.OrderDao

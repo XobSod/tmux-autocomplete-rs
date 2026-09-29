@@ -1,0 +1,17 @@
+$ ls -la
+total 64
+drwxr-xr-x 6 user user 4096 Mar  3 10:12 .
+drwxr-xr-x 9 user user 4096 Mar  1 18:40 ..
+drwxr-xr-x 8 user user 4096 Mar  3 10:12 .git
+-rw-r--r-- 1 user user   21 Feb 27 09:05 .gitignore
+-rw-r--r-- 1 user user 1873 Mar  2 16:44 Cargo.lock
+-rw-r--r-- 1 user user  312 Mar  2 16:44 Cargo.toml
+-rw-r--r-- 1 user user 1065 Feb 27 09:05 LICENSE
+-rw-r--r-- 1 user user 2210 Mar  3 10:01 README.md
+drwxr-xr-x 2 user user 4096 Mar  1 11:20 benches
+-rwxr-xr-x 1 user user  418 Feb 28 14:31 build.sh
+-rw-r--r-- 1 user user  903 Mar  2 12:07 build.rs
+drwxr-xr-x 3 user user 4096 Mar  3 09:58 src
+drwxr-xr-x 4 user user 4096 Mar  1 18:40 target
+drwxr-xr-x 2 user user 4096 Mar  2 16:50 tests
+-rw-r--r-- 1 user user  640 Feb 28 14:31 build.log.old

@@ -7,7 +7,7 @@ use std::path::Path;
 
 use regex::Regex;
 use tmux_autocomplete::cli::{DEFAULT_REGEXP_CANDIDATE, DEFAULT_REGEXP_CURSOR};
-use tmux_autocomplete::completion::{dedup, find_candidates, find_identifier};
+use tmux_autocomplete::completion::{candidate_matcher, dedup, find_candidates, find_identifier};
 
 fn candidates_for(scenario: &Path) -> (Vec<String>, Vec<String>) {
     let spec = fs::read_to_string(scenario).unwrap();
@@ -26,20 +26,22 @@ fn candidates_for(scenario: &Path) -> (Vec<String>, Vec<String>) {
     let identifier = find_identifier(
         &Regex::new(DEFAULT_REGEXP_CURSOR).unwrap(),
         &lines[last],
+        0,
         last,
         cursor,
     )
     .unwrap()
     .expect("identifier at the prompt");
 
-    let found = dedup(
-        find_candidates(
-            &Regex::new(DEFAULT_REGEXP_CANDIDATE).unwrap(),
-            &lines,
-            Some(&identifier),
-        )
-        .unwrap(),
-    );
+    let matcher = candidate_matcher(
+        &Regex::new(DEFAULT_REGEXP_CANDIDATE).unwrap(),
+        Some(&identifier),
+    )
+    .unwrap();
+    let mut found = Vec::new();
+    find_candidates(&matcher, 0, &lines, Some(&identifier), &mut found);
+    // As in the original: of duplicates, the last one is kept.
+    let found = dedup(found, |_| ());
     (found.into_iter().map(|c| c.word.value).collect(), expected)
 }
 

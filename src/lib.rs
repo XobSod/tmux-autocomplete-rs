@@ -7,6 +7,8 @@ pub mod crash;
 pub mod layout;
 pub mod logging;
 pub mod pane;
+pub mod picker;
 pub mod theme;
 pub mod tmux;
 pub mod ui;
+pub mod window;

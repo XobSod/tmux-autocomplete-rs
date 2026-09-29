@@ -56,6 +56,15 @@ pub struct Cli {
     #[arg(long, value_name = "DIRS")]
     pub theme_path: Option<String>,
 
+    /// Show the picker in a new window instead of a popup (for tmux older
+    /// than 3.3).
+    #[arg(long)]
+    pub window: bool,
+
+    /// Lines of scrollback to search in each pane. Defaults to all of it.
+    #[arg(long, value_name = "LINES")]
+    pub history: Option<usize>,
+
     /// Append debug messages to FILE.
     #[arg(long, value_name = "FILE")]
     pub debug: Option<PathBuf>,
@@ -75,9 +84,13 @@ pub struct Cli {
     )]
     pub worker: Option<Vec<String>>,
 
-    /// Internal: FIFO the worker reports errors to.
+    /// Internal: file or FIFO the worker reports errors to.
     #[arg(long, value_name = "PATH", hide = true, requires = "worker")]
     pub report_to: Option<PathBuf>,
+
+    /// Internal: the tmux client the completion was started from.
+    #[arg(long, value_name = "NAME", hide = true, requires = "worker")]
+    pub client: Option<String>,
 }
 
 impl Cli {
@@ -100,6 +113,9 @@ impl Cli {
         }
         if let Some(dirs) = &self.theme_path {
             args.extend(["--theme-path".into(), dirs.into()]);
+        }
+        if let Some(lines) = self.history {
+            args.extend(["--history".into(), lines.to_string().into()]);
         }
         if let Some(file) = &self.debug {
             args.extend(["--debug".into(), file.into()]);

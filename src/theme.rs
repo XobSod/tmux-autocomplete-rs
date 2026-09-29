@@ -16,6 +16,8 @@ use serde::Deserialize;
 pub const SYSTEM_THEME_DIR: &str = "/usr/share/tmux-autocomplete/themes/";
 pub const USER_THEME_DIR: &str = "~/.config/tmux-autocomplete/themes/";
 
+const DEFAULT_PROMPT_STYLE: &str = "default+i:default";
+
 const BUILTIN_THEMES: &[(&str, &str)] = &[
     ("light", include_str!("../share/themes/light.theme")),
     ("dark", include_str!("../share/themes/dark.theme")),
@@ -28,6 +30,8 @@ pub struct Theme {
     pub candidate: CandidateStyles,
     /// The dimmed pane contents behind the candidates.
     pub fog: FogStyles,
+    /// The filter prompt and scroll position indicators.
+    pub prompt: ContentStyle,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,6 +52,8 @@ struct ThemeFile {
     identifier: String,
     candidate: CandidateFile,
     fog: FogFile,
+    /// Optional, for compatibility with themes of the Go version.
+    prompt: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -100,6 +106,8 @@ impl Theme {
                 text: parse_style(&file.fog.text).context("fog.text")?,
                 background: parse_style(&file.fog.background).context("fog.background")?,
             },
+            prompt: parse_style(file.prompt.as_deref().unwrap_or(DEFAULT_PROMPT_STYLE))
+                .context("prompt")?,
         })
     }
 }

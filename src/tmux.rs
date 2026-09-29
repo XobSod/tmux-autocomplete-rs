@@ -1,6 +1,6 @@
 //! Thin wrapper around the `tmux` command line client.
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -22,10 +22,66 @@ pub fn display(target: Option<&str>, format: &str) -> Result<String> {
     Ok(output.trim_end_matches('\n').to_owned())
 }
 
-/// Returns the visible contents of `target`, including SGR escape sequences,
-/// with wrapped lines joined.
-pub fn capture_pane(target: &str) -> Result<String> {
-    run(&["capture-pane", "-p", "-e", "-J", "-t", target], None)
+/// Returns the contents of `target`, including SGR escape sequences, with
+/// wrapped lines joined. Without a range, the visible screen is returned;
+/// otherwise the `-S` and `-E` arguments of `capture-pane`.
+pub fn capture_pane(target: &str, range: Option<(&str, &str)>) -> Result<String> {
+    let mut args = vec!["capture-pane", "-p", "-e", "-J", "-t", target];
+    if let Some((start, end)) = range {
+        args.extend(["-S", start, "-E", end]);
+    }
+    run(&args, None)
+}
+
+/// Lists the panes of the window containing `target`, one line per pane
+/// formatted with `format`.
+pub fn list_panes(target: &str, format: &str) -> Result<String> {
+    run(&["list-panes", "-t", target, "-F", format], None)
+}
+
+/// Where and how large a popup is, in client cells.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PopupArea {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+}
+
+/// Shows a borderless popup running `command` (a shell command line) on
+/// `client`, and waits until it exits.
+pub fn display_popup(client: &str, target: &str, area: PopupArea, command: &OsStr) -> Result<()> {
+    // For popups `-y` is the bottom edge.
+    let mut args: Vec<OsString> = ["display-popup", "-E", "-B", "-c", client, "-t", target]
+        .map(OsString::from)
+        .into();
+    for (flag, value) in [
+        ("-x", area.x),
+        ("-y", area.y + area.height),
+        ("-w", area.width),
+        ("-h", area.height),
+    ] {
+        args.extend([flag.into(), value.to_string().into()]);
+    }
+    args.push(command.to_owned());
+    run(&args, None).map(drop)
+}
+
+/// Stores `text` in a new paste buffer and sends it to the clipboard of
+/// `client`, as copy mode does.
+pub fn copy(client: &str, text: &str) -> Result<()> {
+    run(
+        &["load-buffer", "-w", "-t", client, "-"],
+        Some(text.as_bytes()),
+    )
+    .map(drop)
+}
+
+/// Shows `text` in the status line of `client`.
+pub fn message(client: &str, text: &str) -> Result<()> {
+    // The message is a format; keep `#` literal.
+    let text = text.replace('#', "##");
+    run(&["display-message", "-c", client, &text], None).map(drop)
 }
 
 /// Opens a new window running `program` with `args`. tmux executes the

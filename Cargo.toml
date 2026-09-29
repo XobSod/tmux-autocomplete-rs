@@ -2,7 +2,7 @@
 name = "tmux-autocomplete"
 version = "1.0.0"
 edition = "2024"
-description = "Autocomplete identifiers from the contents of the current tmux pane"
+description = "Autocomplete identifiers from the contents of the current tmux window"
 readme = "README.md"
 
 [[bin]]

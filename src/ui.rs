@@ -4,7 +4,7 @@ use std::io::{self, Stdout, Write};
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use crossterm::style::{ContentStyle, PrintStyledContent, StyledContent};
+use crossterm::style::{Attribute, ContentStyle, PrintStyledContent, StyledContent};
 use crossterm::{cursor, queue, terminal};
 use unicode_width::UnicodeWidthStr;
 
@@ -84,21 +84,11 @@ fn draw(out: &mut Stdout, picker: &Picker, theme: &Theme, size: Cell) -> io::Res
     let selected = picker.selected();
     for &index in picker.matches() {
         if Some(index) != selected {
-            draw_word(
-                &mut canvas,
-                picker,
-                &picker.candidates[index].word,
-                theme.candidate.normal,
-            )?;
+            draw_candidate(&mut canvas, picker, index, theme.candidate.normal)?;
         }
     }
     if let Some(index) = selected {
-        draw_word(
-            &mut canvas,
-            picker,
-            &picker.candidates[index].word,
-            theme.candidate.selected,
-        )?;
+        draw_candidate(&mut canvas, picker, index, theme.candidate.selected)?;
     }
 
     for pane in &picker.panes {
@@ -177,6 +167,34 @@ fn draw_borders(canvas: &mut Canvas, panes: &[PaneView], style: ContentStyle) ->
     Ok(())
 }
 
+/// Draws a candidate if it is in view, underlining the characters matched
+/// by the filter.
+fn draw_candidate(
+    canvas: &mut Canvas,
+    picker: &Picker,
+    index: usize,
+    style: ContentStyle,
+) -> io::Result<()> {
+    let word = &picker.candidates[index].word;
+    let pane = &picker.panes[word.pane];
+    let first = pane.cell(word.line, word.column).row;
+    let last = pane.cell(word.line, word.column + word.len()).row;
+    if !(first..=last).any(|row| pane.is_in_view(row)) {
+        return Ok(());
+    }
+
+    let matched = picker.matched_chars(index);
+    let mut underlined = style;
+    underlined.attributes.set(Attribute::Underlined);
+    canvas.text(pane, word.line, word.column, word.len(), |i| {
+        if matched.binary_search(&(i - word.column)).is_ok() {
+            underlined
+        } else {
+            style
+        }
+    })
+}
+
 fn draw_word(
     canvas: &mut Canvas,
     picker: &Picker,
@@ -198,10 +216,7 @@ fn draw_prompt(canvas: &mut Canvas, picker: &Picker, theme: &Theme) -> io::Resul
     }
     let status = match picker.selected() {
         Some(selected) => {
-            let position = picker
-                .matches()
-                .binary_search(&selected)
-                .map_or(0, |p| p + 1);
+            let position = picker.position_of(selected).map_or(0, |p| p + 1);
             format!("[{position}/{}]", picker.matches().len())
         }
         None => "[no match]".to_owned(),

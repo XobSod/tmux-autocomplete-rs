@@ -15,6 +15,7 @@ clap = { version = "4.6.7", features = ["derive", "wrap_help"] }
 crossterm = "0.29.0"
 log = { version = "0.4.34", features = ["std"] }
 nix = { version = "0.31.3", features = ["fs"] }
+nucleo-matcher = "0.3.1"
 regex = "1.13.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_yaml_ng = "0.10.0"

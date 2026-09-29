@@ -35,8 +35,8 @@ scrollback. When there is only one candidate it is inserted right away.
 | Key | Action |
 | --- | --- |
 | `h` `j` `k` `l`, arrows | Move. Stays within the pane, scrolling through its history, then continues in the neighbouring pane. |
-| `/` | Filter: type to narrow the candidates (smart case). `Enter` inserts, `Esc` returns to moving with the filter kept, `Backspace` on an empty filter clears it. Arrows, `Tab`/`Ctrl-n` and `Shift-Tab`/`Ctrl-p` move while filtering. |
-| `n` `N` | Next / previous candidate |
+| `/` | Fuzzy filter: type to narrow the candidates, like fzf (`hw25` finds `history_word_25`; smart case). Matched characters are underlined and the best match is selected. fzf syntax works: `'exact`, `^prefix`, `suffix$`, `!exclude`. `Enter` inserts, `Esc` returns to moving with the filter kept, `Backspace` on an empty filter clears it. Arrows, `Tab`/`Ctrl-n` and `Shift-Tab`/`Ctrl-p` move while filtering. |
+| `n` `N` | Next / previous candidate (best match first while filtering) |
 | `Enter` | Insert the selected candidate (or run `--exec` on it) |
 | `y` | Copy it to a tmux buffer and the system clipboard (via `set-clipboard`) |
 | `Esc` `q` `Ctrl-C` | Cancel |

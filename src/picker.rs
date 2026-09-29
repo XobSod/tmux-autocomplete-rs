@@ -1,6 +1,11 @@
 //! State of the interactive picker: selection, movement, filtering and
 //! scrolling. Drawing is left to `ui`.
 
+use std::cell::RefCell;
+
+use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher, Utf32Str};
+
 use crate::completion::{Candidate, Word};
 use crate::layout::Cell;
 use crate::window::PaneView;
@@ -60,7 +65,12 @@ pub struct Picker {
     anchor: Cell,
     pub mode: Mode,
     pub filter: String,
-    /// Indices of candidates matching the filter, in position order.
+    pattern: Pattern,
+    /// Reused between searches; in a cell so drawing can ask for the
+    /// matched characters.
+    matcher: RefCell<Matcher>,
+    /// Indices of candidates matching the filter: in position order without
+    /// a filter, best match first with one.
     matches: Vec<usize>,
     selected: Option<usize>,
 }
@@ -91,6 +101,8 @@ impl Picker {
             anchor,
             mode: Mode::Normal,
             filter: String::new(),
+            pattern: Pattern::default(),
+            matcher: RefCell::new(Matcher::new(Config::DEFAULT)),
             selected: None,
         };
         picker.select(picker.best_match());
@@ -101,9 +113,25 @@ impl Picker {
         self.selected
     }
 
-    /// Indices of the candidates currently offered, in position order.
+    /// Indices of the candidates currently offered: in position order
+    /// without a filter, best match first with one.
     pub fn matches(&self) -> &[usize] {
         &self.matches
+    }
+
+    /// Character indices of `candidate` matched by the filter, sorted.
+    pub fn matched_chars(&self, candidate: usize) -> Vec<usize> {
+        if self.filter.is_empty() {
+            return Vec::new();
+        }
+        let mut buffer = Vec::new();
+        let mut indices = Vec::new();
+        let haystack = Utf32Str::new(&self.candidates[candidate].word.value, &mut buffer);
+        self.pattern
+            .indices(haystack, &mut self.matcher.borrow_mut(), &mut indices);
+        indices.sort_unstable();
+        indices.dedup();
+        indices.into_iter().map(|i| i as usize).collect()
     }
 
     pub fn handle(&mut self, key: Key) -> Outcome {
@@ -160,32 +188,37 @@ impl Picker {
         Outcome::Continue
     }
 
+    /// Applies a fuzzy filter (fzf syntax, smart case) and selects the best
+    /// match; ties go to the candidate nearest the cursor.
     fn set_filter(&mut self, filter: String) {
-        // Smart case: case-sensitive only when the filter has capitals.
-        let case_sensitive = filter.chars().any(char::is_uppercase);
-        let needle = if case_sensitive {
-            filter.clone()
-        } else {
-            filter.to_lowercase()
-        };
-        self.matches = (0..self.candidates.len())
-            .filter(|&index| {
-                let value = &self.candidates[index].word.value;
-                if case_sensitive {
-                    value.contains(&needle)
-                } else {
-                    value.to_lowercase().contains(&needle)
-                }
-            })
-            .collect();
+        self.pattern = Pattern::parse(&filter, CaseMatching::Smart, Normalization::Smart);
         self.filter = filter;
 
-        let still_matches = self
-            .selected
-            .is_some_and(|s| self.matches.binary_search(&s).is_ok());
-        if !still_matches {
-            self.select(self.best_match());
+        if self.filter.is_empty() {
+            self.matches = (0..self.candidates.len()).collect();
+            if self.selected.is_none() {
+                self.select(self.best_match());
+            }
+            return;
         }
+
+        let mut scored: Vec<(u32, usize)> = {
+            let mut matcher = self.matcher.borrow_mut();
+            let mut buffer = Vec::new();
+            (0..self.candidates.len())
+                .filter_map(|index| {
+                    let haystack = Utf32Str::new(&self.candidates[index].word.value, &mut buffer);
+                    self.pattern
+                        .score(haystack, &mut matcher)
+                        .map(|score| (score, index))
+                })
+                .collect()
+        };
+        scored.sort_by_cached_key(|&(score, index)| {
+            std::cmp::Reverse((score, self.proximity(index)))
+        });
+        self.matches = scored.into_iter().map(|(_, index)| index).collect();
+        self.select(self.matches.first().copied());
     }
 
     fn select(&mut self, index: Option<usize>) {
@@ -202,14 +235,13 @@ impl Picker {
         }
     }
 
-    /// Moves to the next or previous match in position order, wrapping
-    /// around.
+    /// Moves to the next or previous match (see `matches`), wrapping around.
     fn cycle(&mut self, forward: bool) {
         let Some(selected) = self.selected else {
             return;
         };
         let count = self.matches.len();
-        let position = self.matches.binary_search(&selected).unwrap_or(0);
+        let position = self.position_of(selected).unwrap_or(0);
         let next = if forward {
             (position + 1) % count
         } else {
@@ -218,33 +250,36 @@ impl Picker {
         self.select(Some(self.matches[next]));
     }
 
-    /// The candidate to select initially: the last one before the cursor in
-    /// the active pane, otherwise one in view, preferring the active pane
-    /// and more recent lines.
-    fn best_match(&self) -> Option<usize> {
-        let top_level = |&&index: &&usize| self.candidates[index].parent.is_none();
-        let before_cursor = self
-            .matches
-            .iter()
-            .filter(top_level)
-            .filter(|&&index| {
-                self.candidates[index].word.pane == self.active && self.cells[index] <= self.anchor
-            })
-            .max_by_key(|&&index| self.cells[index]);
+    /// Position of `candidate` in `matches`.
+    pub fn position_of(&self, candidate: usize) -> Option<usize> {
+        self.matches.iter().position(|&index| index == candidate)
+    }
 
-        before_cursor
-            .or_else(|| {
-                self.matches.iter().max_by_key(|&&index| {
-                    let pane = self.candidates[index].word.pane;
-                    (
-                        self.panes[pane].is_in_view(self.cells[index].row),
-                        pane == self.active,
-                        self.candidates[index].parent.is_none(),
-                        self.cells[index],
-                    )
-                })
-            })
+    /// The candidate to select without a filter: the nearest one before the
+    /// cursor in the active pane, otherwise one in view.
+    fn best_match(&self) -> Option<usize> {
+        self.matches
+            .iter()
             .copied()
+            .max_by_key(|&index| self.proximity(index))
+    }
+
+    /// How close a candidate is to where the user is working, higher being
+    /// closer: before the cursor in the active pane (nearest first), then in
+    /// view, in the active pane, top-level rather than nested, and recent.
+    fn proximity(&self, index: usize) -> (bool, bool, bool, bool, Cell) {
+        let candidate = &self.candidates[index];
+        let pane = candidate.word.pane;
+        let cell = self.cells[index];
+        let top_level = candidate.parent.is_none();
+        let active = pane == self.active;
+        (
+            active && top_level && cell <= self.anchor,
+            self.panes[pane].is_in_view(cell.row),
+            active,
+            top_level,
+            cell,
+        )
     }
 
     /// The match to move to from `from` in `direction`.
@@ -451,6 +486,32 @@ mod tests {
         press(&mut p, "n");
         assert_eq!(selected(&p), "foo_old", "wraps around");
         assert!(matches!(p.handle(Key::Char('y')), Outcome::Copy(_)));
+    }
+
+    #[test]
+    fn filter_is_fuzzy() {
+        let mut p = picker();
+        press(&mut p, "/fr3");
+        assert_eq!(p.matches().len(), 1);
+        assert_eq!(selected(&p), "foo_r3");
+        let index = p.selected().unwrap();
+        assert_eq!(p.matched_chars(index), [0, 4, 5]);
+
+        // fzf syntax: an exact match.
+        p.handle(Key::Escape);
+        press(&mut p, "/'o_r");
+        assert_eq!(p.matches().len(), 3);
+    }
+
+    #[test]
+    fn ties_go_to_the_nearest_candidate() {
+        let mut p = picker();
+        press(&mut p, "/foo");
+        assert_eq!(
+            selected(&p),
+            "foo_c",
+            "all score the same; nearest before the cursor wins"
+        );
     }
 
     #[test]

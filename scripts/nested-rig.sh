@@ -15,4 +15,8 @@ rig_start() { # $1 = width, $2 = height of the client terminal (status line incl
   to new-session -d -s o -x $1 -y $2 "env -u TMUX TERM=tmux-256color tmux -L tac-inner attach -t t"
   sleep 0.8
 }
-rig_stop() { to kill-server 2>/dev/null; ti kill-server 2>/dev/null; }
+rig_stop() { # tmux leaves its socket files behind, so remove them too
+  local sockets="$(to display -p '#{socket_path}' 2>/dev/null) $(ti display -p '#{socket_path}' 2>/dev/null)"
+  to kill-server 2>/dev/null; ti kill-server 2>/dev/null
+  rm -f $sockets
+}

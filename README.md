@@ -71,15 +71,20 @@ inverse, `B` blink, `s` strikethrough, `h` bright.
 ## Development
 
 ```sh
-cargo test
-scripts/demo.sh k k Enter      # or: TYPED='echo hi' scripts/demo.sh / 2 5 Enter
+cargo test                     # unit and end-to-end tests
+scripts/demo.sh k k Enter      # watch a completion; or: scripts/demo.sh / 2 5 Enter
 ```
 
-`scripts/demo.sh` runs a completion in an isolated nested tmux: an outer
-server (`-L tac-outer`) shows a client attached to an inner one
-(`-L tac-inner`), so the popup can be captured and typed into. It prints the
-popup and the resulting prompt line. `scripts/nested-rig.sh` has the helpers
-for other scenarios.
+The end-to-end tests (`tests/e2e/`) need tmux 3.3 or later. Each one starts
+its own pair of tmux servers with sockets in a temporary directory: an outer
+server shows a client attached to an inner one, so the popup can be captured
+and typed into. A test theme with distinctive colours lets the tests read
+which candidates are highlighted, selected or underlined. Tests wait for
+screen states rather than sleeping, and run in parallel in well under a
+second.
+
+`scripts/demo.sh` uses the same idea from the shell (helpers in
+`scripts/nested-rig.sh`) and prints the popup and the resulting prompt line.
 
 ## Differences from the Go version
 

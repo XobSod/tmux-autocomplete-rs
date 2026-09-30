@@ -4,6 +4,8 @@ version = "1.0.0"
 edition = "2024"
 description = "Autocomplete identifiers from the contents of the current tmux window"
 readme = "README.md"
+license = "MIT"
+repository = "https://github.com/XobSod/tmux-autocomplete-rs"
 
 [[bin]]
 name = "tmux-autocomplete"

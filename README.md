@@ -98,3 +98,7 @@ second.
 - `Esc` cancels; the terminal is redrawn on resize.
 - Pastes through a dedicated tmux buffer, leaving your buffers untouched.
 - New: popup overlay, all panes of the window, scrollback, filtering, copying.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
